@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdbool.h>
 
 //---------------
 // RCC Registers
@@ -72,7 +73,7 @@ void board_gpio_init() {
 void totally_accurate_quantum_femtosecond_precise_super_delay_3000_1000ms() {
 
     for (uint32_t i = 0; i < 1000U * ONE_MILLISECOND; ++i) {
-        
+
         // Insert NOP for power consumption:
         __asm__ volatile("nop");
     }
