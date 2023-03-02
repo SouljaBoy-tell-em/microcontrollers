@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <time.h>
 
 //---------------
 // RCC Registers
@@ -24,8 +23,8 @@
 #define CPU_FREQENCY 48000000U // CPU frequency: 48 MHz
 #define ONE_MILLISECOND CPU_FREQENCY/1000U
 
-void board_clocking_init()
-{
+void board_clocking_init() {
+
     // (1) Clock HSE and wait for oscillations to setup.
     *REG_RCC_CR = 0x00010000U;
     while ((*REG_RCC_CR & 0x00020000U) != 0x00020000U);
@@ -56,46 +55,50 @@ void board_clocking_init()
     *REG_RCC_CFGR |= 0b001U << 8U;
 }
 
-void board_gpio_init()
-{
+void board_gpio_init() {
+
     // (1) Enable GPIOC clocking:
     *REG_RCC_AHBENR |= 0x80000U;
 
-    // (2) Configure PC8 mode:
+    // (2) Configure PC8 & PC9 mode:
     *GPIOC_MODER |= 0b01U << (2*8U);
     *GPIOC_MODER |= 0b01U << (2*9U);
 
-    // (3) Configure PC8 type:
+    // (3) Configure PC8 & PC9 type:
     *GPIOC_TYPER |= 0b0U << 8U;
     *GPIOC_TYPER |= 0b0U << 9U;
 }
 
-void totally_accurate_quantum_femtosecond_precise_super_delay_3000_1000ms()
-{
-    for (uint32_t i = 0; i < 1000U * ONE_MILLISECOND; ++i)
-    {
+void totally_accurate_quantum_femtosecond_precise_super_delay_3000_1000ms() {
+
+    for (uint32_t i = 0; i < 1000U * ONE_MILLISECOND; ++i) {
+        
         // Insert NOP for power consumption:
         __asm__ volatile("nop");
     }
 }
 
-int main()
-{
+int main() {
+
 #ifndef INSIDE_QEMU
+
     board_clocking_init();
 #endif
 
     board_gpio_init();
 
-    while (1)
-    {
+    while (true) {
 
-        *(volatile uint32_t*)(uintptr_t)0x48000814U |=  (1 << 9);
         *(volatile uint32_t*)(uintptr_t)0x48000814U |=  (1 << 8);
         totally_accurate_quantum_femtosecond_precise_super_delay_3000_1000ms();
-
-        *(volatile uint32_t*)(uintptr_t)0x48000814U &= ~(1 << 9);
         *(volatile uint32_t*)(uintptr_t)0x48000814U &= ~(1 << 8);
         totally_accurate_quantum_femtosecond_precise_super_delay_3000_1000ms();
+
+        *(volatile uint32_t*)(uintptr_t)0x48000814U |=  (1 << 9);
+        totally_accurate_quantum_femtosecond_precise_super_delay_3000_1000ms();
+        *(volatile uint32_t*)(uintptr_t)0x48000814U &= ~(1 << 9);
+        totally_accurate_quantum_femtosecond_precise_super_delay_3000_1000ms();
+
+        for (int i = 0; i < 100000; i++);
     }
 }
