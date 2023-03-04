@@ -46,19 +46,19 @@
 //----------------
 
 #define BLINKINGDIODE(num)                              \
-        BLINKING_ON(SET_PIN_RESET, num);                \
+        GPIO_BIT_SET_BLINKING_ON(SET_PIN_RESET, num);   \
         TIMEDELAY(100);                                 \
         delay_3000_1000ms();                            \
-        BLINKING_OFF(SET_PIN_RESET, num);               \
+        GPIO_BIT_SET_BLINKING_OFF(SET_PIN_RESET, num);  \
         TIMEDELAY(100);                                 \
         delay_3000_1000ms();
 
-#define BLINKING_OFF(reg, bit) (SET_BIT_ON(reg, (bit + 16)))
-#define BLINKING_ON(reg, bit) (SET_BIT_ON(reg, bit))
+#define GPIO_BIT_SET_BLINKING_OFF(reg, bit) (SET_BIT_ON(reg, (bit + 16)))
+#define GPIO_BIT_SET_BLINKING_ON(reg, bit) (SET_BIT_ON(reg, bit))
 #define GPIOC_MODER_SET(reg, bit) (SET_BIT_ON((reg), 2 * (bit)))
 #define GPIOC_TYPER_SET(reg, bit) (SET_BIT_OFF((reg), (bit)))
 #define MODIFY_REG(reg, modifymask, value) (*(reg) = ((*(reg) & (~(modifymask))) | (value & modifymask)))
-#define REG_CLOCK_HSE_ON(reg) (SET_BIT_ON(reg, 16U))
+#define REG_RCC_CR_CLOCK_HSE_ON(reg) (SET_BIT_ON(reg, 16U))
 #define REG_RCC_CFGR2_CONFIGURATE_PLL(reg, div) (MODIFY_REG((reg), AHB_PREDIV, ((div) - 1))) 
 #define REG_RCC_CFGR_SELECT_PLL_DIV(reg, div) (MODIFY_REG((reg), REG_RCC_CFGR_START, div))
 #define REG_RCC_CFGR_SELECT_PLL_MUL(reg, mul) (MODIFY_REG((reg), SYSCLK_TO_PLLMUL, ((mul) - 2U) << 18))
