@@ -6,14 +6,19 @@
 #include <stdbool.h>
 
 
-//-------
-// MASKS
-//-------
+//----------------
+// CONSTS & MASKS
+//----------------
 
-#define MASK8_ON       1 << 8
-#define MASK9_ON       1 << 9
-#define MASK8_OFF ~(MASK8_ON)
-#define MASK9_OFF ~(MASK9_ON)
+#define AHB_TO_PLL                              0b10U
+#define AHB_PREDIV                              0b11U
+#define HSI_SRC                             (1U << 15)
+#define REG_RCC_CFGR_START                0x00010000U
+#define REG_RCC_CR_STAB                     (1U << 17)
+#define REG_RCC_CR_STAB1                    (1U << 25)
+#define REG_RCC_CFGR_STAB_1                      0xCU
+#define REG_RCC_CFGR_TO_APB             (0b111U << 8U)
+#define SYSCLK_TO_PLLMUL                   (15U << 18)
 
 
 //---------------
@@ -24,7 +29,8 @@
 #define REG_RCC_CFGR    (volatile uint32_t * )(uintptr_t)0x40021004U // PLL Configuration Register
 #define REG_RCC_AHBENR  (volatile uint32_t * )(uintptr_t)0x40021014U // AHB1 Peripheral Clock Enable Register
 #define REG_RCC_CFGR2   (volatile uint32_t * )(uintptr_t)0x4002102CU // Clock configuration register 2
-#define SET_PIN        *(volatile uint32_t * )(uintptr_t)0x48000814U
+#define SET_PIN_ON      (volatile uint32_t * )(uintptr_t)0x48000814U
+#define SET_PIN_RESET   (volatile uint32_t * )(uintptr_t)0x48000818U
 
 
 //----------------
@@ -39,42 +45,32 @@
 // MACRO COMMANDS:
 //----------------
 
-#define TIMEDELAY(time) for (int i = 0; i < time * 1000; i++);
-
-#define MODIFY_REG(reg, modifymask, value)          \
-        reg modifymask value
-
-#define BLINKINGDIODE(num)                          \
-        MODIFY_REG(SET_PIN, |=, MASK##num##_ON);    \
-        TIMEDELAY(100)                              \
-        delay_3000_1000ms();                        \
-        MODIFY_REG(SET_PIN, &=, MASK##num##_OFF);   \
-        TIMEDELAY(100)                              \
+#define BLINKINGDIODE(num)                              \
+        BLINKING_ON(SET_PIN_RESET, num);                \
+        TIMEDELAY(100);                                 \
+        delay_3000_1000ms();                            \
+        BLINKING_OFF(SET_PIN_RESET, num);               \
+        TIMEDELAY(100);                                 \
         delay_3000_1000ms();
 
-#define SET_MODE(reg, bit, endstate)                \
-        while(MODIFY_REG(reg, &, bit) != endstate);
-
-//--------
-// CONSTS:
-//--------
-
-#define AHB_TO_PLL                      0b10U
-#define AHB_PREDIV               0b000U << 4U
-#define AHBENR_START                 0x80000U
-#define CONFIGURE_PC8_MODE 0b01U   << (2 * 8U)
-#define CONFIGURE_PC9_MODE 0b01U   << (2 * 9U)
-#define CONFIGURE_PC8_TYPE         0b0U << 8U
-#define CONFIGURE_PC9_TYPE         0b0U << 9U 
-#define CR_START                  0x00010000U
-#define CR_STAB                   0x00020000U
-#define CR_STAB1                  0x02000000U
-#define CFGR_STAB_1                      0xCU
-#define CFGR_STAB_2                      0x8U
-#define CFGR_TO_APB              0b001U << 8U
-#define CR_START1                 0x01000000U
-#define PLL_DEVIDER                        1U
-#define PLLMUL12              (12U-2U) << 18U
+#define BLINKING_OFF(reg, bit) (SET_BIT_ON(reg, (bit + 16)))
+#define BLINKING_ON(reg, bit) (SET_BIT_ON(reg, bit))
+#define GPIOC_MODER_SET(reg, bit) (SET_BIT_ON((reg), 2 * (bit)))
+#define GPIOC_TYPER_SET(reg, bit) (SET_BIT_OFF((reg), (bit)))
+#define MODIFY_REG(reg, modifymask, value) (*(reg) = ((*(reg) & (~(modifymask))) | (value & modifymask)))
+#define REG_CLOCK_HSE_ON(reg) (SET_BIT_ON(reg, 16U))
+#define REG_RCC_CFGR2_CONFIGURATE_PLL(reg, div) (MODIFY_REG((reg), AHB_PREDIV, ((div) - 1))) 
+#define REG_RCC_CFGR_SELECT_PLL_DIV(reg, div) (MODIFY_REG((reg), REG_RCC_CFGR_START, div))
+#define REG_RCC_CFGR_SELECT_PLL_MUL(reg, mul) (MODIFY_REG((reg), SYSCLK_TO_PLLMUL, ((mul) - 2U) << 18))
+#define REG_RCC_CR_ENABLE_PLL(reg) (SET_BIT_ON((reg), 24))
+#define REG_RCC_CFGR_CONFIGURATE_AHB(reg, bit) (MODIFY_REG((reg), AHB_PREDIV, (bit) << 4))
+#define REG_RCC_CFGR_SELECT_PLL_SYSCLK(reg, bit) (MODIFY_REG((reg), AHB_PREDIV, (bit)))
+#define REG_RCC_CFGR_SET_APB_FREQ(reg) (MODIFY_REG((reg), REG_RCC_CFGR_TO_APB, (0b100 << 8)))
+#define REG_RCC_AHBENR_ENABLE_GPIOC(reg) (SET_BIT_ON((reg), 19))
+#define SET_BIT_ON(reg, bit)  (*(reg) |= 1U << (bit))
+#define SET_BIT_OFF(reg, bit) (*(reg) &= (~(1U << (bit))))
+#define SETTING_STATE(reg, bit) while((*reg) & bit != bit);
+#define TIMEDELAY(time) for (int i = 0; i < time * 1000; i++)
     
 
 //------
