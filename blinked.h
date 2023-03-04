@@ -1,48 +1,53 @@
+#ifndef __FUNC_H__
+#define __FUNC_H__
+
+
 void board_clocking_init(void) {
 
     // (1) Clock HSE and wait for oscillations to setup.
-    MODIFY_REG(*REG_RCC_CR, =,                CR_START);
-    SET_MODE  (*REG_RCC_CR, CR_STAB,           CR_STAB);
+    REG_CLOCK_HSE_ON(REG_RCC_CR);
+    SETTING_STATE(REG_RCC_CR, REG_RCC_CR_STAB);
 
     // (2) Configure PLL:
     // PREDIV output: HSE/2 = 4 MHz
-    MODIFY_REG(*REG_RCC_CFGR2, |=,          AHB_PREDIV);
+    REG_RCC_CFGR2_CONFIGURATE_PLL(REG_RCC_CFGR2, 2U);
 
     // (3) Select PREDIV output as PLL input (4 MHz):
-    MODIFY_REG(*REG_RCC_CFGR, |=,             CR_START);
+    REG_RCC_CFGR_SELECT_PLL_DIV(REG_RCC_CFGR, HSI_SRC);
 
     // (4) Set PLLMUL to 12:
     // SYSCLK frequency = 48 MHz
-    MODIFY_REG(*REG_RCC_CFGR, |=,             PLLMUL12);
+    REG_RCC_CFGR_SELECT_PLL_MUL(REG_RCC_CFGR, 12);
 
     // (5) Enable PLL:
-    MODIFY_REG(*REG_RCC_CR, |=,              CR_START1);
-    SET_MODE  (*REG_RCC_CR, CR_STAB,           CR_STAB);
+    REG_RCC_CR_ENABLE_PLL(REG_RCC_CR);
+    SETTING_STATE(REG_RCC_CR, REG_RCC_CR_STAB1);
 
     // (6) Configure AHB frequency to 48 MHz:
-    MODIFY_REG(*REG_RCC_CFGR, |=,           AHB_PREDIV);
+    REG_RCC_CFGR_CONFIGURATE_AHB(REG_RCC_CFGR, 0);
 
     // (7) Select PLL as SYSCLK source:
-    MODIFY_REG(*REG_RCC_CFGR, |=,           AHB_TO_PLL);
-    SET_MODE  (*REG_RCC_CFGR, CFGR_STAB_1, CFGR_STAB_2);
+
+    REG_RCC_CFGR_SELECT_PLL_SYSCLK(REG_RCC_CFGR, AHB_TO_PLL);
+    SETTING_STATE(REG_RCC_CFGR, REG_RCC_CFGR_STAB_1);
 
     // (8) Set APB frequency to 24 MHz
-    MODIFY_REG(*REG_RCC_CFGR, |=,          CFGR_TO_APB);
+    REG_RCC_CFGR_SET_APB_FREQ(REG_RCC_CFGR);
 }
 
 
 void board_gpio_init(void) {
 
     // (1) Enable GPIOC clocking:
-    MODIFY_REG(*REG_RCC_AHBENR, |=,       AHBENR_START);
+    REG_RCC_AHBENR_ENABLE_GPIOC(REG_RCC_AHBENR);
 
     // (2) Configure PC8 & PC9 mode:
-    MODIFY_REG(*GPIOC_MODER,    |=, CONFIGURE_PC8_MODE);
-    MODIFY_REG(*GPIOC_MODER,    |=, CONFIGURE_PC9_MODE);
+    GPIOC_MODER_SET(GPIOC_MODER, 8);
+    GPIOC_MODER_SET(GPIOC_MODER, 9);
 
     // (3) Configure PC8 & PC9 type:
-    MODIFY_REG(*GPIOC_TYPER,    |=, CONFIGURE_PC8_TYPE);
-    MODIFY_REG(*GPIOC_TYPER,    |=, CONFIGURE_PC9_TYPE);
+    GPIOC_TYPER_SET(GPIOC_TYPER, 8);
+    GPIOC_TYPER_SET(GPIOC_TYPER, 9);
 }
 
 void delay_3000_1000ms(void) {
@@ -54,3 +59,5 @@ void delay_3000_1000ms(void) {
         __asm__ volatile("nop");
     }
 }
+
+#endif
