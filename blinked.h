@@ -1,11 +1,7 @@
-#ifndef __FUNC_H__
-#define __FUNC_H__
-
-
 void board_clocking_init(void) {
 
     // (1) Clock HSE and wait for oscillations to setup.
-    REG_CLOCK_HSE_ON(REG_RCC_CR);
+    REG_RCC_CR_CLOCK_HSE_ON(REG_RCC_CR);
     SETTING_STATE(REG_RCC_CR, REG_RCC_CR_STAB);
 
     // (2) Configure PLL:
@@ -59,5 +55,3 @@ void delay_3000_1000ms(void) {
         __asm__ volatile("nop");
     }
 }
-
-#endif
