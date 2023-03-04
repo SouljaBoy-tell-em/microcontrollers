@@ -16,4 +16,6 @@ int main(void) {
         BLINKINGDIODE (8)
         BLINKINGDIODE (9)
     }
+
+    return 0;
 }
