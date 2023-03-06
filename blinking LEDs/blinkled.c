@@ -2,7 +2,7 @@
 #include "registers.h"
 #include "bits.h"
 #include "gpio.h"
-#include "blinked.h"
+#include "blinkled.h"
 
 
 int main(void) {
