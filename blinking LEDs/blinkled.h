@@ -1,5 +1,5 @@
-#ifndef __BLINKED_H__
-#define __BLINKED_H__
+#ifndef __BLINKLED_H__
+#define __BLINKLED_H__
 
 
 void board_clocking_init(void) {
