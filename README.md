@@ -5,3 +5,4 @@ My projects on STM32 microcontrollers:
 alternating flashing flashing diodes;
 
 ### GPIO:
+
