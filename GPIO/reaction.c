@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 //---------------
 // RCC Registers
@@ -48,23 +49,36 @@
 // MASKS
 //-------
 
-#define REG_RCC_AHBENR_PA1_PA12_OUTPUT_MASK   (1 << 17)
+#define AHB_TO_PLL                               0b10U
+#define AHB_PREDIV                               0b11U
 #define GPIOA_MODER_CONFIGURATE_MASK        0x1555554U
-#define PA0_CONFIGURATE_MASK                      0b10
+#define PA0_CONFIGURATE_MASK                     0b11U
+#define REG_RCC_AHBENR_PA1_PA12_OUTPUT_MASK   (1 << 17)
+#define REG_RCC_CFGR_START                 0x00010000U
+#define REG_RCC_CFGR_TO_APB              (0b111U << 8U)
+#define REG_RCC_CFGR_STAB1                        0xCU
+#define REG_RCC_CR_STAB1                    (1U << 25U)
+#define SYSCLK_TO_PLLMUL                   (15U << 18U)
 
 
 //--------
 // CONSTS
 //--------
 
-#define REG_RCC_AHBENR_PA1_PA12_OUTPUT_VALUE    0x20000
 #define GPIOA_CONFIGURATE_MODE_VALUE         0x1555554U
-#define 
+#define HSI_SRC                              (1U << 15U)
+#define PULL_DOWN                                 0b10U
+#define REG_RCC_AHBENR_PA1_PA12_OUTPUT_VALUE    0x20000
+#define REG_RCC_CR_STAB                      (1U << 17U) // the end meaning for oscillations to setup.
 
 
 //--------
 // MACROS
 //--------
+
+#define WHILE_STATE_ESTABLISHMENT(reg, bit) while((((*reg)) & (bit)) != (bit))
+
+#define SET_BIT_ON(reg, bit)  (*(reg) |= 1U << (bit))       // set bit in register to 1
 
 #define MODIFY_REG(reg, modifymask, value) \
         (*(reg) = ((*(reg) & (~(modifymask))) | (value & modifymask)))
@@ -80,9 +94,21 @@
 #define GPIOA_MODER_CONFIGURATE_PA0_BUTTON(reg, bit) \
         MODIFY_REG((reg), PA0_CONFIGURATE_MASK, bit)
 
-#define GPIOA_PUPDR_CONFIGURATE_PA0_PULL_DOWN(reg, bit) \
-        MODIFY_REG((reg), PA0_CONFIGURATE_MASK, bit)
+#define GPIOA_PUPDR_CONFIGURATE_PA0_MODE(reg, bit) \
+        MODIFY_REG((reg), PA0_CONFIGURATE_MASK, bit)     
+                                                        // 0 - PULL_NO;
+                                                        // 1 - PULL_UP;
+                                                        // 2 - PULL_DOWN;
+                                                        // 3 - RESERVED;
 
+#define REG_RCC_CR_CLOCK_HSE_ON(reg) (SET_BIT_ON(reg, 16U))
+#define REG_RCC_CFGR2_CONFIGURATE_PLL(reg, div) (MODIFY_REG((reg), AHB_PREDIV, ((div) - 1))) 
+#define REG_RCC_CFGR_SELECT_PLL_DIV(reg, div) (MODIFY_REG((reg), REG_RCC_CFGR_START, div))
+#define REG_RCC_CFGR_SELECT_PLL_MUL(reg, mul) (MODIFY_REG((reg), SYSCLK_TO_PLLMUL, ((mul) - 2U) << 18))
+#define REG_RCC_CR_ENABLE_PLL(reg) (SET_BIT_ON((reg), 24))
+#define REG_RCC_CFGR_CONFIGURATE_AHB(reg, bit) (MODIFY_REG((reg), AHB_PREDIV, (bit) << 4))
+#define REG_RCC_CFGR_SELECT_PLL_SYSCLK(reg, bit) (MODIFY_REG((reg), AHB_PREDIV, (bit)))
+#define REG_RCC_CFGR_SET_APB_FREQ(reg) (MODIFY_REG((reg), REG_RCC_CFGR_TO_APB, (0b100 << 8)))
 
 
 static const uint32_t PINS_USED = A|B|C|D|E|F|G|DP|POS0|POS1|POS2|POS3;
@@ -143,42 +169,41 @@ void SEG7_push_display_state_to_mc(struct Seg7Display* seg7)
 #define CPU_FREQENCY 48000000U // CPU frequency: 48 MHz
 #define ONE_MILLISECOND CPU_FREQENCY/1000U
 
-void board_clocking_init()
-{
+void board_clocking_init(void) {
+
     // (1) Clock HSE and wait for oscillations to setup.
-    *REG_RCC_CR = 0x00010000U;
-    while ((*REG_RCC_CR & 0x00020000U) != 0x00020000U);
+    REG_RCC_CR_CLOCK_HSE_ON(REG_RCC_CR);
+    WHILE_STATE_ESTABLISHMENT(REG_RCC_CR, REG_RCC_CR_STAB);
 
     // (2) Configure PLL:
     // PREDIV output: HSE/2 = 4 MHz
-    *REG_RCC_CFGR2 |= 1U;
+    REG_RCC_CFGR2_CONFIGURATE_PLL(REG_RCC_CFGR2, 2U);
 
     // (3) Select PREDIV output as PLL input (4 MHz):
-    *REG_RCC_CFGR |= 0x00010000U;
+    REG_RCC_CFGR_SELECT_PLL_DIV(REG_RCC_CFGR, HSI_SRC);
 
     // (4) Set PLLMUL to 12:
     // SYSCLK frequency = 48 MHz
-    *REG_RCC_CFGR |= (12U-2U) << 18U;
+    REG_RCC_CFGR_SELECT_PLL_MUL(REG_RCC_CFGR, 12);
 
     // (5) Enable PLL:
-    *REG_RCC_CR |= 0x01000000U;
-    while ((*REG_RCC_CR & 0x02000000U) != 0x02000000U);
+    REG_RCC_CR_ENABLE_PLL(REG_RCC_CR);
+    //WHILE_STATE_ESTABLISHMENT(REG_RCC_CR, REG_RCC_CR_STAB1);
 
     // (6) Configure AHB frequency to 48 MHz:
-    *REG_RCC_CFGR |= 0b000U << 4U;
+    REG_RCC_CFGR_CONFIGURATE_AHB(REG_RCC_CFGR, 0);
 
     // (7) Select PLL as SYSCLK source:
-    *REG_RCC_CFGR |= 0b10U;
-    while ((*REG_RCC_CFGR & 0xCU) != 0x8U);
+    REG_RCC_CFGR_SELECT_PLL_SYSCLK(REG_RCC_CFGR, AHB_TO_PLL);
+    //WHILE_STATE_ESTABLISHMENT(REG_RCC_CFGR, REG_RCC_CFGR_STAB1);
 
     // (8) Set APB frequency to 24 MHz
-    *REG_RCC_CFGR |= 0b001U << 8U;
+    REG_RCC_CFGR_SET_APB_FREQ(REG_RCC_CFGR);
 }
 
-void to_get_more_accuracy_pay_2202_2013_2410_3805_1ms()
-{
-    for (uint32_t i = 0; i < ONE_MILLISECOND/3U; ++i)
-    {
+void to_get_more_accuracy_pay_2202_2013_2410_3805_1ms() {
+    
+    for (uint32_t i = 0; i < ONE_MILLISECOND/3U; ++i) {
         // Insert NOP for power consumption:
         __asm__ volatile("nop");
     }
@@ -203,16 +228,15 @@ void board_gpio_init() {
     GPIOA_MODER_CONFIGURATE_PA0_BUTTON(GPIOA_MODER, 0U);
 
     // Configure PA0 as pull-down pin:
-    GPIOA_CONFIGURATE_PA0_PULL_DOWN(GPIOA_PUPDR, )
-    *GPIOA_PUPDR |= (0b10U << (2U*0U));
+    GPIOA_PUPDR_CONFIGURATE_PA0_MODE(GPIOA_PUPDR, PULL_DOWN);
 }
 
 //------
 // Main
 //------
 
-int main()
-{
+int main() {
+
     board_clocking_init();
 
     board_gpio_init();
