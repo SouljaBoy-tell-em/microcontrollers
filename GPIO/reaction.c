@@ -250,26 +250,23 @@ int main() {
     uint32_t tick = 0;
     bool button_was_pressed = 0U;
     uint32_t saturation = 0U;
-    while (1)
-    {
-        // Update button state:
-        bool active = *GPIOA_IDR & (1U << 0U);
 
-        if (active)
-        {
+    while (1) { // НАПИСАТЬ УДОБНЫЙ МАКРОС ДЛЯ УСТАНОВЛЕНИЯ РЕЖИМА БЕЗ ДРЕБЕЗГА КОНТАКТОВ;
+
+        // Update button state:
+        bool active = *GPIOA_IDR & (1U << 0U); // current state of port GPIOA
+
+        if (active) {
+
             if (saturation < 5U)
-            {
                 saturation += 1U;
-            }
+
             else
-            {
                 button_was_pressed = 1U;
-            }
         }
+
         else
-        {
             saturation = 0U;
-        }
 
         // Update display state:
         if (!button_was_pressed && (tick % 10U) == 0U)
