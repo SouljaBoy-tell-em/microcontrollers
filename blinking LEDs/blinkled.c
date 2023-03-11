@@ -1,4 +1,4 @@
-#include "headers/head_blinked.h"
+#include "headers/head_blinkled.h"
 #include "src/registers.h"
 #include "src/bits.h"
 #include "src/gpio.h"
