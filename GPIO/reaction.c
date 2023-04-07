@@ -25,9 +25,6 @@ int main() {
 
     while (true) {
 
-        GPIO_BIT_SET_BLINKING_ON(GPIOC_PORT_BIT_SET, 8);
-        GPIO_BIT_SET_BLINKING_ON(GPIOC_PORT_BIT_SET, 9);
-
         // Update button state:
         GPIO_IDR_GET_VALUE_PA0_INPUT(active, GPIOA_IDR, 0U);
 
