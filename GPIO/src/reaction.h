@@ -85,15 +85,4 @@ void to_get_more_accuracy_pay(void) {
 }
 
 
-void delay_3000_time_delay_ms(void) {
-
-    uint32_t sec = 0;
-    for (sec = 0; sec < 1000U * ONE_MILLISECOND; ++sec) {
-
-        // Insert NOP for power consumption:
-        __asm__ volatile("nop");
-    }
-}
-
-
 #endif
