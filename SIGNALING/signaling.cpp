@@ -3,24 +3,101 @@
 #include <stdlib.h>
 
 
-#define PIN_TRIG 13
-#define PIN_ECHO 11
+//--------
+// MACROS:
+//--------
 
+#define CONVERTTOCM(cm, duration) (cm) = ((duration) / 2) / 29.1
+
+
+//---------------------------------
+// PARALLEL PROGRAMMING PROCESSESS:
+//---------------------------------
+
+// Thread brainThread = Thread();
+// Thread onClickButtonThread = Thread();
+
+
+//-----
+// LED:
+//-----
 
 const int LED = 9;
-const int sampleWindow = 50;
+
+
+//-------------
+// DYNAMIC PIN:
+//-------------
+
 const int tonePin = 6;
-const int speakerPin = 6;
+#define FREQUENCY 391
+#define DURATION 173.07675
+#define PERIOD 500
+
+
+//---------------------------------
+// CONFIGURATE LIQUID CRYSTAL PINS:
+//---------------------------------
 
 const int rs = 12, en = 10, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
+
+//-----------------------
+// ANTI-DEBOUNCER CONSTS:
+//-----------------------
+
+// bool lastButton = false;
+// bool currentButton = false;
+#define ANTIDEBOUNCETIME 5
+
+
+//------------
+// BUTTON PIN:
+//------------
+
+const int buttonPin = 8;
+
+
+//--------------
+// RANGE SENSOR:
+//--------------
+
+#define LIMITLENGTH 2000
 long duration, cm;
 unsigned int sample;
 
 
-Thread brainThread = Thread();
-Thread onClickButtonThread = Thread();
+//---------------------------
+// DISPLAY 16 * 2 PARAMETERS:
+//---------------------------
+
+#define LENGTH 16
+#define WIDTH   2
+
+
+//-----------------------------
+// OTHER OUTPUT AND INPUT PINS:
+//-----------------------------
+
+#define PIN_TRIG 13
+#define PIN_ECHO 11
+const int sampleWindow = 50;
+
+
+//--------------
+// OTHER CONSTS:
+//--------------
+
+#define TRANSMISSIONSPEED 9600
+
+
+void music();
+bool debounce(bool last);
+void signal();
+void brain();
+int clickButton();
+
 
 void music() {
 
@@ -565,18 +642,14 @@ void music() {
 }
 
 
-bool lastButton = false;
-bool currentButton = false;
-
-
 bool debounce(bool last) {
 
-    bool current = digitalRead(8);
+    bool current = digitalRead(buttonPin);
 
     if(last != current) {
 
-        delay(5);
-        current = digitalRead(8);
+        delay(ANTIDEBOUNCETIME);
+        current = digitalRead(buttonPin);
 
         return current;
     }
@@ -587,135 +660,111 @@ void signal() {
 
   while(true) {
 
-      tone(tonePin, 391, 173.07675);
-      delay(500);
+      tone(tonePin, FREQUENCY, DURATION);
+      delay(PERIOD);
 
-      if(digitalRead(8) == 0) {
+      if (!digitalRead(buttonPin)) {
 
-          delay(5);
-          if(digitalRead(8) == 0)
+          delay(ANTIDEBOUNCETIME);
+          if (!digitalRead(buttonPin))
               return;
       }
   }
 }
 
 
+void clearDisplay() {
+
+    lcd.setCursor(0, 0);
+    lcd.print("                ");
+    lcd.setCursor(0, 1);
+    lcd.print("                ");
+}
+
+
 void brain() {
-
-  //tone(tonePin, 1000);
-
-  // Сначала генерируем короткий импульс длительностью 2-5 микросекунд.
 
   digitalWrite(PIN_TRIG, LOW);
   delayMicroseconds(5);
   digitalWrite(PIN_TRIG, HIGH);
 
-  // Выставив высокий уровень сигнала, ждем около 10 микросекунд. В этот момент датчик будет посылать сигналы с частотой 40 КГц.
   delayMicroseconds(10);
   digitalWrite(PIN_TRIG, LOW);
 
-  //  Время задержки акустического сигнала на эхолокаторе.
   duration = pulseIn(PIN_ECHO, HIGH);
 
-  // Теперь осталось преобразовать время в расстояние
-  cm = (duration / 2) / 29.1;
+  CONVERTTOCM(cm, duration);
 
   Serial.print("Расстояние до объекта: ");
   Serial.print(cm);
   Serial.println(" см.");
 
-  // Задержка между измерениями для корректной работы скеча
   delay(250);
 
   digitalWrite(LED, LOW);
-   // Cохраняем текущие значение millis в startMillis
-   unsigned long startMillis= millis();         
-   // Создаем переменною peakToPeak, где храним разницу между минимальным и максимальным сигналом
-   unsigned int peakToPeak = 0;                
+  unsigned long startMillis= millis();         
+  unsigned int peakToPeak = 0;                
 
-   // signalMax максимальным значением
-   unsigned int signalMax = 0; 
-   // signalMin минимальным значением                 
-   unsigned int signalMin = 1024;              
+  unsigned int signalMax = 0; 
+  unsigned int signalMin = 1024;              
 
-   // Пока в startMillis содержащиеся больше заданного sampleWindow, выполняется код в цикле while
-   while (millis() - startMillis < sampleWindow) 
-   {
-      // Сохраняем значение переменной sample считанное с аналогового входе 0
+   while(millis() - startMillis < sampleWindow) {
+
       sample = analogRead(0);    
-      // Если значение sample меньше 1024, то есть максимальное значение, читаемое на аналоговом порту                
-      if (sample < 1024)                         
-      {
-         // Если значение sample больше максимального значения, найденного в signalMax
-         if (sample > signalMax)                
-         {
-            // Обновление значения signalMax, содержащимся в sample
+      if (sample < 1024) {
+
+         if (sample > signalMax)
             signalMax = sample; 
-         }
-         //  В противном случае, если значение sample меньше, чем signalMin
+
          else if (sample < signalMin) 
-         {
-            // Обновление значения signalMin, содержащимся в sample
             signalMin = sample;  
-         }
       }
    }
-   //  В переменной peakToPeak будет хранится разницу между максимальным значением и минимальным значением.
+
    peakToPeak = signalMax - signalMin; 
-   // Значение peakToPeak умножается на 5 - это напряжение, с которым работает Arduino, а затем делим на 1024, поскольку на аналоговом порту от 0 до 1024.
    double volts = (peakToPeak * 5.0) / 1024;  
-   // Отправляем переменную в вольте.
    Serial.println(volts);
 
-   if(cm > 2000) {
-
-     lcd.setCursor(0, 0);
-     lcd.print("                ");
-     lcd.setCursor(0, 1);
-     lcd.print("                ");
-   } 
+   if (cm > LIMITLENGTH)
+     clearDisplay();
   
   if(volts > 2 || (cm < 10 && cm >= 3)) {
 
-        lcd.setCursor(0, 0);
-        
-        digitalWrite(LED, HIGH);
+    lcd.setCursor(0, 0);
+    digitalWrite(LED, HIGH);
 
-      if(cm < 1000) {
+    if (cm < 1000) {
 
-        lcd.print("length: ");  
-        lcd.print(cm);
-      }
+      lcd.print("length: ");  
+      lcd.print(cm);
+    }
 
-        lcd.setCursor(0, 1);
-        lcd.print("volume: ");
-        lcd.print(volts);
-        signal(); 
-   }
-        analogWrite(LED, 103 * volts);
-        delay(10);
+    lcd.setCursor(0, 1);
+    lcd.print("volume: ");
+    lcd.print(volts);
+    signal(); 
+  }
+
+  analogWrite(LED, 103 * volts);
+  delay(10);
 }
 
 
 int clickButton() {
 
-  if (digitalRead(8) == 0)
-      exit(0);
+  if(digitalRead(buttonPin) == 0)
+      exit(EXIT_SUCCESS);
 }
 
 void setup() {
 
-  // Инициализируем взаимодействие по последовательному порту
-  
-  lcd.begin(16, 2);
-
-  Serial.begin (9600);
+  lcd.begin(LENGTH, WIDTH);
+  Serial.begin (TRANSMISSIONSPEED);
   //music();
 
-  //Определяем вводы и выводы
   pinMode(PIN_TRIG, OUTPUT);
   pinMode(PIN_ECHO, INPUT);
-  pinMode(8, INPUT_PULLUP);
+  pinMode(buttonPin, INPUT_PULLUP);
 
   //brainThread.onRun(brain);
   //onClickButtonThread.onRun(clickButton);
